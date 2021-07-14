@@ -1,10 +1,11 @@
 use std::net::IpAddr;
 use std::str::FromStr;
-use http::uri::{Scheme, Authority};
 use std::collections::BTreeMap;
 use std::fmt;
+use url::Host;
+use http::uri::Scheme;
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 enum Nodename {
     Ip(IpAddr),
     Obf(String),
@@ -24,6 +25,7 @@ impl fmt::Display for Nodename {
     }
 }
 
+#[derive(Debug)]
 pub struct ParseNodenameError;
 
 impl FromStr for Nodename {
@@ -41,7 +43,7 @@ impl FromStr for Nodename {
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 enum Nodeport {
     Port(u16),
     Obf(String),
@@ -72,7 +74,7 @@ fn get_obf(s:   &str) -> Option<String> {
     None
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 enum Node {
     Node(Nodename,Nodeport),
     Unknown
@@ -97,6 +99,7 @@ impl fmt::Display for Node {
     }
 }
 
+#[derive(Debug)]
 pub struct ParseNodeError;
 
 impl FromStr for Node {
@@ -128,11 +131,11 @@ impl FromStr for Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,Clone,PartialEq)]
 struct ForwardedElement {
     for_:       Node,
     by:         Option<Node>,
-    host:       Option<String>,
+    host:       Option<Host>,
     proto:      Option<Scheme>,
     extensions: BTreeMap<String,String>
 }
@@ -147,7 +150,7 @@ impl fmt::Display for ForwardedElement {
             String::from("")
         };
         let host = if let Some(host) = &self.host {
-            let mut s = host.clone();
+            let mut s = host.to_string();
             s.insert_str(0,";host=");
             s
         } else {
@@ -163,7 +166,7 @@ impl fmt::Display for ForwardedElement {
         let extensions = if self.extensions.len() > 0 {
             let mut i = self.extensions.iter();
             let f = i.next().ok_or(fmt::Error)?;
-            let s = format!(";{}={}",f.0,f.1);
+            let mut s = format!(";{}={}",f.0,f.1);
             while let Some((k,v)) = i.next() {
                 let st = format!(";{}={}",k,v);
                 s.insert_str(0,st.as_str());
@@ -194,8 +197,11 @@ impl ForwardedElement {
     fn set_by(&mut self, node: Node) {
         self.by = Some(node);
     }
-    fn set_host(&mut self, host: &str) {
-        self.host = Some(String::from(host));
+    fn set_host(&mut self, host: &str) 
+        -> Result<(),ParseForwardedElementError> {
+        self.host = Some(Host::parse(host)
+            .map_err(|_| ParseForwardedElementError)?);
+            Ok(())
     }
     fn set_proto(&mut self, proto: Scheme) {
         self.proto = Some(proto);
@@ -205,26 +211,29 @@ impl ForwardedElement {
     }
 }
 
+#[derive(Debug)]
 pub struct ParseForwardedElementError;
 
 impl FromStr for ForwardedElement {
     type Err = ParseForwardedElementError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let n = s.split(';')
-            .map(|x|x.split_once('='))
-            .collect::<Vec<Option<(&str,&str)>>>();
-        if n.iter().any(|x| x.is_some()) 
-        {return Err(ParseForwardedElementError);}
+        let r = s.split(';')
+            .map(|x|x.split_once('='));
+        if !r.clone().any(|x| x.is_some())
+            {return Err(ParseForwardedElementError);}
+        let n = r
+            .map(Option::unwrap)
+            .collect::<Vec<(&str,&str)>>();
         if let Some((f,elm)) = n.split_first() {
-            let mut e = if let Some(("For",r)) | Some(("for",r)) = f {
+            let mut e = if let ("For",r) | ("for",r) = f {
                 let n = Node::from_str(r)
                     .map_err(|_| ParseForwardedElementError)?;
                 ForwardedElement::new(n)
             } else {
                 return Err(ParseForwardedElementError);
             };
-            while let Some(Some((l,r))) = elm.iter().next() {
+            for (l,r) in elm {
                 match *l {
                     "by" | "By"         =>{
                         let v = Node::from_str(r)
@@ -232,29 +241,30 @@ impl FromStr for ForwardedElement {
                         e.set_by(v);
                     },
                     "host" | "Host"     =>{
-                        let v = r.parse::<Authority>()
-                            .map_err(|_| ParseForwardedElementError)?;
-                        e.set_host(v.host());
-                        },
+                        e.set_host(r)?;
+                    },
                     "proto" | "Proto"   =>{
                         let v = r.parse::<Scheme>()
                             .map_err(|_| ParseForwardedElementError)?;
                         e.set_proto(v);
                     },
                     _                   =>{
+                        let r = r.trim_matches('"');
                         e.set_extensions((l,r));
                     },
                 }
             }
+            return Ok(e);
         }
         Err(ParseForwardedElementError)
     }
 }
-#[derive(Debug)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Forwarded {
     forwarded_element:  Vec<ForwardedElement>
 }
 
+#[derive(Debug)]
 pub struct ParseForwardedError;
 
 impl FromStr for Forwarded {
@@ -262,7 +272,7 @@ impl FromStr for Forwarded {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = Vec::new();
-        while let Some(e) = s.split(',').next() {
+        for e in s.split(',') {
             let elm = ForwardedElement::from_str(e)
                 .map_err(|_| ParseForwardedError)?;
             v.push(elm);
@@ -275,6 +285,15 @@ impl FromStr for Forwarded {
 
 impl fmt::Display for Forwarded {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut i = self.forwarded_element.iter();
+        let mut s = String::from("");
+        while let Some(f) = i.next() {
+            let st = f.to_string();
+            s.push_str(&st);
+            s.push(',');
+        }
+        let _ = s.pop();
+        write!(f,"{}",s)
     }
 }
 
@@ -283,6 +302,14 @@ mod tests {
     use super::*;
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let n1  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let le1 = ForwardedElement::new(n1);
+        let n2  = Node::from_str("[2001:db8:cafe::17]:15").unwrap();
+        let le2 = ForwardedElement::new(n2);
+        let l = Forwarded {
+            forwarded_element:  vec![le1, le2]
+        };
+        let r = Forwarded::from_str(r#"for="[2001:db8:cafe::17]:154",for=[2001:db8:cafe::17]:15"#).unwrap();
+        assert_eq!(l,r);
     }
 }

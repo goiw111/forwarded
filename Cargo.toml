@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 http = "0.2.4"
+url = "2.2.2"
