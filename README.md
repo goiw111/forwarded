@@ -1,2 +1,2 @@
 # Forwarded
-is lib for parsing for forwarded header field value
+is lib for parsing forwarded header field value
