@@ -1,8 +1,13 @@
 [package]
 name = "forwarded"
 version = "1.0.0"
-authors = ["sohayl <sohayl>"]
+authors = ["sohayl <chahmot.s@gmail.com>"]
 edition = "2018"
+description = "is lib for parsing forwarded header field value"
+readme = "README.md"
+homepage = "https://github.com/goiw111/forwarded"
+repository = "https://github.com/goiw111/forwarded"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
