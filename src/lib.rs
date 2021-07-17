@@ -6,7 +6,7 @@ use url::Host;
 use http::uri::Scheme;
 
 #[derive(Debug,Clone,PartialEq)]
-enum Nodename {
+pub enum Nodename {
     Ip(IpAddr),
     Obf(String),
 }
@@ -44,7 +44,7 @@ impl FromStr for Nodename {
 }
 
 #[derive(Debug,Clone,PartialEq)]
-enum Nodeport {
+pub enum Nodeport {
     Port(u16),
     Obf(String),
     None
@@ -75,7 +75,7 @@ fn get_obf(s:   &str) -> Option<String> {
 }
 
 #[derive(Debug,Clone,PartialEq)]
-enum Node {
+pub enum Node {
     Node(Nodename,Nodeport),
     Unknown
 }
@@ -132,7 +132,7 @@ impl FromStr for Node {
 }
 
 #[derive(Debug,Clone,PartialEq)]
-struct ForwardedElement {
+pub struct ForwardedElement {
     for_:       Node,
     by:         Option<Node>,
     host:       Option<Host>,
@@ -185,7 +185,7 @@ impl fmt::Display for ForwardedElement {
 }
 
 impl ForwardedElement {
-    fn new(node:    Node) -> Self {
+    pub fn new(node:    Node) -> Self {
         ForwardedElement {
             for_:       node,
             by:         None,
@@ -194,19 +194,19 @@ impl ForwardedElement {
             extensions: BTreeMap::new()
         }
     }
-    fn set_by(&mut self, node: Node) {
+    pub fn set_by(&mut self, node: Node) {
         self.by = Some(node);
     }
-    fn set_host(&mut self, host: &str) 
+    pub fn set_host(&mut self, host: &str) 
         -> Result<(),ParseForwardedElementError> {
         self.host = Some(Host::parse(host)
             .map_err(|_| ParseForwardedElementError)?);
             Ok(())
     }
-    fn set_proto(&mut self, proto: Scheme) {
+    pub fn set_proto(&mut self, proto: Scheme) {
         self.proto = Some(proto);
     }
-    fn set_extensions(&mut self, (key,value): (&str,&str)) {
+    pub fn set_extensions(&mut self, (key,value): (&str,&str)) {
         self.extensions.insert(String::from(key),String::from(value));
     }
 }
@@ -297,19 +297,120 @@ impl fmt::Display for Forwarded {
     }
 }
 
+impl Forwarded {
+    pub fn new() -> Self {
+        Forwarded {
+            forwarded_element:  Vec::new()
+        }
+    }
+    pub fn set_element(&mut self,elm:  ForwardedElement) {
+        self.forwarded_element.push(elm);
+    }
+    pub fn remove_element(&mut self,index:  usize) -> ForwardedElement {
+        self.forwarded_element.remove(index)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn it_works() {
-        let n1  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
-        let le1 = ForwardedElement::new(n1);
-        let n2  = Node::from_str("[2001:db8:cafe::17]:15").unwrap();
-        let le2 = ForwardedElement::new(n2);
-        let l = Forwarded {
-            forwarded_element:  vec![le1, le2]
-        };
-        let r = Forwarded::from_str(r#"for="[2001:db8:cafe::17]:154",for=[2001:db8:cafe::17]:15"#).unwrap();
-        assert_eq!(l,r);
+    fn forwardedelement_for() {
+        let n  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let l  = ForwardedElement::new(n);
+        let mut f1 = Forwarded::new();
+        f1.set_element(l);
+
+        let f2 = Forwarded::from_str(r#"for="[2001:db8:cafe::17]:154""#).unwrap();
+
+        assert_eq!(f1,f2);
+    }
+
+    #[test]
+    fn forwardedelement_for_by() {
+        let n  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let mut l  = ForwardedElement::new(n);
+        let n  = Node::from_str("192.168.1.1:80").unwrap();
+        l.set_by(n);
+        let mut f1 = Forwarded::new();
+        f1.set_element(l);
+
+        let f2 = Forwarded::from_str(
+            r#"for="[2001:db8:cafe::17]:154";by="192.168.1.1:80""#
+            ).unwrap();
+        assert_eq!(f1,f2);
+    }
+    #[test]
+    #[warn(unused_must_use)]
+    fn forwardedelement_for_by_host() {
+        let n  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let mut l  = ForwardedElement::new(n);
+        let n  = Node::from_str("_something:_something").unwrap();
+        l.set_by(n);
+        l.set_host("google.com").unwrap();
+        let mut f1 = Forwarded::new();
+        f1.set_element(l);
+
+        let f2 = Forwarded::from_str(
+            r#"for="[2001:db8:cafe::17]:154";by="_something:_something";host=google.com"#
+            ).unwrap();
+        assert_eq!(f1,f2);
+    }
+    #[test]
+    fn forwardedelement_for_by_host_proto() {
+        let n  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let mut l  = ForwardedElement::new(n);
+        let n  = Node::from_str("unknown").unwrap();
+        l.set_by(n);
+        l.set_host("google.com").unwrap();
+        l.set_proto(Scheme::HTTP);
+        let mut f1 = Forwarded::new();
+        f1.set_element(l);
+
+        let f2 = Forwarded::from_str(
+            r#"for="[2001:db8:cafe::17]:154";by=unknown;host=google.com;proto=http"#
+            ).unwrap();
+        assert_eq!(f1,f2);
+    }
+
+    #[test]
+    fn forwardedelement_for_by_host_proto_ext() {
+        let n  = Node::from_str("[2001:db8:cafe::17]:154").unwrap();
+        let mut l  = ForwardedElement::new(n);
+        let n  = Node::from_str("192.168.1.1").unwrap();
+        l.set_by(n);
+        l.set_host("google.com").unwrap();
+        l.set_proto(Scheme::HTTP);
+        l.set_extensions(("secret","fsdfsdfs"));
+        l.set_extensions(("desc","some desc"));
+        let mut f1 = Forwarded::new();
+        f1.set_element(l);
+
+        let f2 = Forwarded::from_str(
+            r#"for="[2001:db8:cafe::17]:154";by=192.168.1.1;host=google.com;proto=http;secret="fsdfsdfs;desc="some desc""#
+        ).unwrap();
+        assert_eq!(f1,f2);
+    }
+    #[test]
+    fn forwardedelements_for_by_host_proto_ext() {
+        let n  = Node::from_str("[2001:db8:cafe::17]").unwrap();
+        let mut l1  = ForwardedElement::new(n);
+        let n  = Node::from_str("192.168.1.1:80").unwrap();
+        l1.set_by(n);
+        l1.set_host("google.com").unwrap();
+        l1.set_extensions(("secret","fsdfsdfs"));
+        l1.set_proto(Scheme::HTTP);
+        l1.set_extensions(("desc","some desc"));
+        let n  = Node::from_str("192.168.1.1:80").unwrap();
+        let l2  = ForwardedElement::new(n);
+        let mut f1 = Forwarded::new();
+        f1.set_element(l1);
+        f1.set_element(l2);
+
+        let f2 = Forwarded::from_str(
+            r#"for="[2001:db8:cafe::17]";by="192.168.1.1:80";host=google.com;proto=http;secret="fsdfsdfs;desc="some desc",for="192.168.1.1:80""#
+            ).unwrap();
+        assert_eq!(f1,f2);
     }
 }
