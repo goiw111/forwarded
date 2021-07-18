@@ -104,7 +104,7 @@ pub struct ParseNodeError;
 
 impl FromStr for Node {
     type Err = ParseNodeError;
-
+    //TODO. make it more powerfull
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim_matches('"');
         if s == "unknown" {
@@ -216,7 +216,7 @@ pub struct ParseForwardedElementError;
 
 impl FromStr for ForwardedElement {
     type Err = ParseForwardedElementError;
-
+    //TODO. make it more powerfull
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let r = s.split(';')
             .map(|x|x.split_once('='));
@@ -269,7 +269,7 @@ pub struct ParseForwardedError;
 
 impl FromStr for Forwarded {
     type Err = ParseForwardedError;
-
+    //TODO. make it more powerfull
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = Vec::new();
         for e in s.split(',') {
@@ -310,7 +310,7 @@ impl Forwarded {
         self.forwarded_element.remove(index)
     }
 }
-
+//TODO. add more unexpected tests
 #[cfg(test)]
 mod tests {
     use super::*;
