@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use url::Host;
 use http::uri::Scheme;
+use std::fmt;
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Nodename {
@@ -27,6 +28,14 @@ impl fmt::Display for Nodename {
 
 #[derive(Debug)]
 pub struct ParseNodenameError;
+
+impl Error for ParseNodenameError {}
+
+impl fmt::Display for ParseNodenameError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "failed to convert str to a nodename")
+    }
+}
 
 impl FromStr for Nodename {
     type Err = ParseNodenameError;
@@ -101,6 +110,14 @@ impl fmt::Display for Node {
 
 #[derive(Debug)]
 pub struct ParseNodeError;
+
+impl Error for ParseNodeError {}
+
+impl fmt::Display for ParseNodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "failed to convert str to a node")
+    }
+}
 
 impl FromStr for Node {
     type Err = ParseNodeError;
@@ -214,6 +231,15 @@ impl ForwardedElement {
 #[derive(Debug)]
 pub struct ParseForwardedElementError;
 
+impl Error for ParseForwardedElementError {}
+
+impl fmt::Display for ParseForwardedElementError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "failed to convert str to ForwardedElement")
+    }
+}
+
+
 impl FromStr for ForwardedElement {
     type Err = ParseForwardedElementError;
     //TODO. make it more powerfull
@@ -266,6 +292,15 @@ pub struct Forwarded {
 
 #[derive(Debug)]
 pub struct ParseForwardedError;
+
+impl Error for ParseForwardedError {}
+
+impl fmt::Display for ParseForwardedError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "failed to convert str to a Forwarded")
+    }
+}
+
 
 impl FromStr for Forwarded {
     type Err = ParseForwardedError;
