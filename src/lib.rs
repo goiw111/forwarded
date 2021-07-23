@@ -1,10 +1,10 @@
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::collections::BTreeMap;
-use std::fmt;
 use url::Host;
 use http::uri::Scheme;
 use std::fmt;
+use std::error::Error;
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Nodename {
