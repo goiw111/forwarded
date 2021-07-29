@@ -307,11 +307,12 @@ impl FromStr for Forwarded {
     //TODO. make it more powerfull
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut v = Vec::new();
+        if s.is_empty() == false {
         for e in s.split(',') {
             let elm = ForwardedElement::from_str(e)
                 .map_err(|_| ParseForwardedError)?;
             v.push(elm);
-        }
+        }}
         return Ok(Forwarded {
             forwarded_element:  v
         });
@@ -343,6 +344,45 @@ impl Forwarded {
     }
     pub fn remove_element(&mut self,index:  usize) -> ForwardedElement {
         self.forwarded_element.remove(index)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.forwarded_element.is_empty()
+    }
+    pub fn from_utf8(v: &[u8]) -> Result<Self,ParseForwardedError> {
+        if let Ok(s) = std::str::from_utf8(v) {
+            return Self::from_str(s);
+        };
+        Err(ParseForwardedError)
+    }
+}
+
+use actix_web::http::header::{self,Header};
+use actix_web::error::ParseError;
+use actix_web::HttpMessage;
+use actix_web::http::HeaderName;
+use actix_web::http::header::IntoHeaderValue;
+use actix_web::http::header::InvalidHeaderValue;
+use actix_web::http::HeaderValue;
+use std::convert::TryFrom;
+
+impl IntoHeaderValue for Forwarded {
+    type Error = InvalidHeaderValue;
+    #[inline]
+    fn try_into(self) -> Result<HeaderValue, Self::Error> {
+        HeaderValue::try_from(self.to_string())
+    }
+}
+
+impl Header for Forwarded {
+    fn name() -> HeaderName {
+        header::FORWARDED
+    }
+    fn parse<T: HttpMessage>(msg: &T) -> Result<Self, ParseError> {
+        if let Some(hv) = msg.headers().get(Self::name()) {
+            return Self::from_utf8(hv.as_bytes())
+                .map_err(|_|ParseError::Header);
+        }
+        Err(ParseError::Header)
     }
 }
 //TODO. add more unexpected tests
@@ -447,5 +487,10 @@ mod tests {
             r#"for="[2001:db8:cafe::17]";by="192.168.1.1:80";host=google.com;proto=http;secret="fsdfsdfs;desc="some desc",for="192.168.1.1:80""#
             ).unwrap();
         assert_eq!(f1,f2);
+    }
+    #[test]
+    fn empty_forwarded() {
+        let f = Forwarded::from_str("").unwrap();
+        assert_eq!(f.is_empty(),true);
     }
 }
