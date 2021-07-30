@@ -1,6 +1,6 @@
 [package]
 name = "forwarded"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["sohayl <chahmot.s@gmail.com>"]
 edition = "2018"
 description = "is lib for parsing forwarded header field value"

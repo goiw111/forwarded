@@ -419,10 +419,10 @@ impl Header for Forwarded {
     }
     fn parse<T: HttpMessage>(msg: &T) -> Result<Self, ParseError> {
         if let Some(hv) = msg.headers().get(Self::name()) {
-            return Self::from_utf8(hv.as_bytes())
-                .map_err(|_|ParseError::Header);
+            return Ok(Self::from_utf8(hv.as_bytes())
+                .map_err(|_|ParseError::Header)?);
         }
-        Err(ParseError::Header)
+        Ok(Forwarded::new())
     }
 }
 //TODO. add more unexpected tests
