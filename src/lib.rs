@@ -110,7 +110,7 @@ fn get_obf(s:   &str) -> Option<String> {
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Node {
-    Node(Nodename,Nodeport),
+    Node(Nodename, Nodeport),
     Unknown
 }
 
@@ -124,6 +124,15 @@ impl From<Option<SocketAddr>> for Node {
     fn from(saddr:  Option<SocketAddr>) -> Self {
         if let Some(saddr) = saddr {
             return  Node::Node(saddr.ip().into(),saddr.port().into())
+        }
+        Node::Unknown
+    }
+}
+
+impl From<Option<IpAddr>> for Node {
+    fn from(saddr:  Option<IpAddr>) -> Self {
+        if let Some(saddr) = saddr {
+            return  Node::Node(saddr.into(),Nodeport::None)
         }
         Node::Unknown
     }
