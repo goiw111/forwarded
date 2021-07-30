@@ -5,11 +5,24 @@ use url::Host;
 use http::uri::Scheme;
 use std::fmt;
 use std::error::Error;
+use std::net::SocketAddr;
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Nodename {
     Ip(IpAddr),
     Obf(String),
+}
+
+impl From<IpAddr> for Nodename {
+    fn from(ip: IpAddr) -> Self {
+        Nodename::Ip(ip)
+    }
+}
+
+impl From<String> for Nodename {
+    fn from(obf: String) -> Self {
+        Nodename::Obf(obf)
+    }
 }
 
 impl fmt::Display for Nodename {
@@ -59,6 +72,18 @@ pub enum Nodeport {
     None
 }
 
+impl From<u16> for Nodeport {
+    fn from(ui: u16) -> Self {
+        Nodeport::Port(ui)
+    }
+}
+
+impl From<String> for Nodeport {
+    fn from(obf: String) -> Self {
+        Nodeport::Obf(obf)
+    }
+}
+
 impl fmt::Display for Nodeport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -87,6 +112,21 @@ fn get_obf(s:   &str) -> Option<String> {
 pub enum Node {
     Node(Nodename,Nodeport),
     Unknown
+}
+
+impl From<SocketAddr> for Node {
+    fn from(saddr:  SocketAddr) -> Self {
+        Node::Node(saddr.ip().into(),saddr.port().into())
+    }
+}
+
+impl From<Option<SocketAddr>> for Node {
+    fn from(saddr:  Option<SocketAddr>) -> Self {
+        if let Some(saddr) = saddr {
+            return  Node::Node(saddr.ip().into(),saddr.port().into())
+        }
+        Node::Unknown
+    }
 }
 
 impl fmt::Display for Node {
