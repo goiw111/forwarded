@@ -129,12 +129,9 @@ impl From<Option<SocketAddr>> for Node {
     }
 }
 
-impl From<Option<IpAddr>> for Node {
-    fn from(saddr:  Option<IpAddr>) -> Self {
-        if let Some(saddr) = saddr {
-            return  Node::Node(saddr.into(),Nodeport::None)
-        }
-        Node::Unknown
+impl From<IpAddr> for Node {
+    fn from(ipadds:  IpAddr) -> Self {
+        return  Node::Node(ipadds.into(),Nodeport::None)
     }
 }
 
