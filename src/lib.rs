@@ -367,15 +367,12 @@ impl FromStr for Forwarded {
 
 impl fmt::Display for Forwarded {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut i = self.forwarded_element.iter();
-        let mut s = String::from("");
-        while let Some(f) = i.next() {
-            let st = f.to_string();
-            s.push_str(&st);
-            s.push(',');
-        }
-        let _ = s.pop();
-        write!(f,"{}",s)
+        let mut i = self.forwarded_element
+            .iter()
+            .map(|x| format!("{},",x))
+            .collect::<String>();
+        let _ = i.pop();
+        write!(f,"{}",i)
     }
 }
 
