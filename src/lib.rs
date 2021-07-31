@@ -1,11 +1,11 @@
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::collections::BTreeMap;
-use url::Host;
 use http::uri::Scheme;
 use std::fmt;
 use std::error::Error;
 use std::net::SocketAddr;
+use http::uri::Authority;
 
 #[derive(Debug,Clone,PartialEq)]
 pub enum Nodename {
@@ -89,7 +89,7 @@ impl fmt::Display for Nodeport {
         match self {
             Nodeport::Port(n)   => return write!(f, "{}", n),
             Nodeport::Obf(s)    => return write!(f, "_{}", s),
-            _                   => return Err(fmt::Error),
+            _                   => return write!(f, "_None"),
         }
     }
 }
@@ -140,10 +140,13 @@ impl fmt::Display for Node {
         match self {
             Node::Unknown   => return write!(f, "unknown"),
             Node::Node(n,p) => {
-                match p {
+                match &p {
                     Nodeport::None  => {
                         if let Nodename::Ip(IpAddr::V6(ip)) = n {
                             return write!(f, "\"[{}]\"", ip);
+                        }
+                        if let Nodename::Ip(IpAddr::V4(ip)) = n {
+                            return write!(f, "{}", ip);
                         }
                         return write!(f, "{}", p);
                     },
@@ -198,20 +201,20 @@ impl FromStr for Node {
 pub struct ForwardedElement {
     for_:       Node,
     by:         Option<Node>,
-    host:       Option<Host>,
+    host:       Option<Authority>,
     proto:      Option<Scheme>,
     extensions: BTreeMap<String,String>
 }
 
 impl fmt::Display for ForwardedElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        /*let by = if let Some(by) = &self.by {
+        let by = if let Some(by) = &self.by {
             format!(";by={}",by)
         } else {
             String::from("")
         };
         let host = if let Some(host) = &self.host {
-            format!(";host={}",host)
+            format!(";host={}",host.host())
         } else {
             String::from("")
         };
@@ -233,8 +236,7 @@ impl fmt::Display for ForwardedElement {
             by= by,
             host= host,
             proto= proto ,
-            extensions= extensions)*/
-        write!(f,"for={}",self.for_)
+            extensions= extensions)
     }
 }
 
@@ -253,7 +255,7 @@ impl ForwardedElement {
     }
     pub fn set_host(&mut self, host: &str) 
         -> Result<(),ParseForwardedElementError> {
-        self.host = Some(Host::parse(host)
+        self.host = Some(host.parse::<Authority>()
             .map_err(|_| ParseForwardedElementError)?);
             Ok(())
     }
