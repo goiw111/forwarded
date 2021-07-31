@@ -206,37 +206,27 @@ pub struct ForwardedElement {
 impl fmt::Display for ForwardedElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let by = if let Some(by) = &self.by {
-            let mut s = format!("{}",by);
-            s.insert_str(0,";by=");
-            s
+            format!(";by={}",by)
         } else {
             String::from("")
         };
         let host = if let Some(host) = &self.host {
-            let mut s = host.to_string();
-            s.insert_str(0,";host=");
-            s
+            format!(";host={}",host)
         } else {
             String::from("")
         };
         let proto = if let Some(proto) = &self.proto {
-            let mut s = format!("{}",proto);
-            s.insert_str(0,";proto=");
-            s
+            format!(";proto={}",proto)
         } else {
             String::from("")
         };
         let extensions = if self.extensions.len() > 0 {
-            let mut i = self.extensions.iter();
-            let f = i.next().ok_or(fmt::Error)?;
-            let mut s = format!(";{}={}",f.0,f.1);
-            while let Some((k,v)) = i.next() {
-                let st = format!(";{}={}",k,v);
-                s.insert_str(0,st.as_str());
-            }
-            s
+            self.extensions
+                .iter()
+                .map(|(k,v)| format!(";{}={}",k,v))
+                .collect::<String>()
         } else {
-            String::from("")
+            String::new()
         };
         write!(f,"for={for_}{by}{host}{proto}{extensions}",
             for_= self.for_,
