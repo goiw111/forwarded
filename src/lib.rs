@@ -205,7 +205,7 @@ pub struct ForwardedElement {
 
 impl fmt::Display for ForwardedElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let by = if let Some(by) = &self.by {
+        /*let by = if let Some(by) = &self.by {
             format!(";by={}",by)
         } else {
             String::from("")
@@ -233,7 +233,8 @@ impl fmt::Display for ForwardedElement {
             by= by,
             host= host,
             proto= proto ,
-            extensions= extensions)
+            extensions= extensions)*/
+        write!(f,"for={}",self.for_)
     }
 }
 
