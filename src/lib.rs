@@ -539,4 +539,26 @@ mod tests {
         let f = Forwarded::from_str("").unwrap();
         assert_eq!(f.is_empty(),true);
     }
+
+    use actix_web::{http, test};
+    use actix_web::HttpRequest;
+    use actix_web::HttpResponse;
+
+    async fn index(req: HttpRequest) -> HttpResponse {
+        let mut forwarded  = Forwarded::parse(&req).unwrap();
+        if let Some(sadds) = req.peer_addr() {
+            let fe = ForwardedElement::new(sadds.ip().into());
+            forwarded.set_element(fe);
+        }
+        HttpResponse::Ok()
+            .set_header(http::header::FORWARDED,forwarded)
+            .finish()
+    }
+
+    #[actix_rt::test]
+    async fn impl_from_ipaddrs() {
+        let req = test::TestRequest::with_header("content-type", "text/plain").to_http_request();
+        let resp = index(req).await;
+        assert_eq!(resp.status(), http::StatusCode::OK);
+    }
 }
